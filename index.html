@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>レシピ栄養計算（書いたままの分量で計算）</title>
+<meta name="description" content="レシピの材料をそのまま貼ると、日本食品標準成分表（八訂）増補2023年の食品に結びつけてグラムに直し、1人分の栄養を計算します。">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+<script>
+  /* 表示テーマを描画前に反映（保存できない環境では自動） */
+  (function () { try { var t = localStorage.getItem("recipe-eiyou:theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {} })();
+</script>
+<meta property="og:type" content="website">
+<meta property="og:title" content="レシピ栄養計算（書いたままの分量で計算）">
+<meta property="og:description" content="レシピの材料をそのまま貼ると、日本食品標準成分表（八訂）増補2023年の食品に結びつけてグラムに直し、1人分の栄養を計算します。">
+<meta property="og:url" content="https://arai-sarai-data.github.io/recipe-eiyo/">
+<meta property="og:image" content="https://arai-sarai-data.github.io/recipe-eiyo/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://arai-sarai-data.github.io/recipe-eiyo/og.png">
+<link rel="canonical" href="https://arai-sarai-data.github.io/recipe-eiyo/">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <div>
+      <h1><span class="logo" aria-hidden="true"></span>さんま1匹のまま計算</h1>
+      <p class="lead">レシピの材料をそのまま貼ると、日本食品標準成分表の食品に結びつけてグラムに直し、1人分の栄養を出します。</p>
+    </div>
+    <button type="button" id="btn-theme" class="btn quiet theme-btn" aria-label="表示の明るさを切り替える">表示: 自動</button>
+  </div>
+</header>
+
+<main class="wrap layout">
+  <p id="status" class="status" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span>成分表（2,538食品）を読み込んでいます…</p>
+  <section class="panel input-panel" aria-labelledby="h-input">
+    <h2 id="h-input">材料</h2>
+    <div class="samples" role="group" aria-label="サンプルレシピ（分量は例）">
+      <span class="samples-label">サンプル</span>
+      <span id="sample-chips" class="sample-chips"></span>
+    </div>
+    <label class="sr-only" for="recipe">レシピの材料</label>
+    <textarea id="recipe" rows="12" spellcheck="false" placeholder="ここに材料を貼り付け（1行に1つ）&#10;例）&#10;材料（2人分）&#10;さんま 2匹&#10;大根 5cm&#10;醤油 大さじ1&#10;塩 少々"></textarea>
+    <div class="input-foot">
+      <div class="servings">
+        <span id="serv-label">何人分で割る</span>
+        <div class="stepper" role="group" aria-labelledby="serv-label">
+          <button type="button" class="step-btn" id="serv-minus" aria-label="1人減らす">−</button>
+          <input id="servings" type="number" min="1" max="100" step="1" value="1" inputmode="numeric" aria-labelledby="serv-label">
+          <button type="button" class="step-btn" id="serv-plus" aria-label="1人増やす">＋</button>
+        </div>
+        <span>人分</span>
+      </div>
+      <button type="button" id="btn-clear" class="btn quiet">入力を消す</button>
+    </div>
+    <p id="servings-note" class="note"></p>
+  </section>
+
+  <div class="results">
+
+    <section class="panel summary" id="summary" hidden aria-labelledby="h-summary">
+      <h2 id="h-summary" class="sr-only">計算結果</h2>
+      <div class="sum-top" id="summary-body">
+        <div class="label-box" id="label-box" aria-label="栄養成分表示（1人分あたり）"></div>
+        <div class="pfc" id="pfc"></div>
+      </div>
+      <div id="sum-flags" class="sum-flags"></div>
+
+      <div class="chart-block">
+        <h3>1人分の主な成分（g）</h3>
+        <div id="chart-amounts" class="bars"></div>
+      </div>
+
+      <div class="chart-block">
+        <h3>食塩相当量と1日の目標量</h3>
+        <div id="chart-salt"></div>
+      </div>
+
+      <div class="chart-block">
+        <h3>どの材料が多く占めるか</h3>
+        <div id="chart-contrib"></div>
+      </div>
+
+      <details class="more">
+        <summary>24成分すべての表</summary>
+        <div id="summary-detail" class="table-wrap"></div>
+      </details>
+
+      <div class="export">
+        <button type="button" id="btn-copy" class="btn">CSVをコピー</button>
+        <button type="button" id="btn-csv" class="btn quiet">CSVファイルで保存</button>
+        <span id="export-msg" class="note" role="status" aria-live="polite"></span>
+      </div>
+      <textarea id="csv-text" class="csv-text" rows="6" readonly hidden aria-label="CSVの内容"></textarea>
+      <p class="note" id="summary-note"></p>
+    </section>
+
+    <section id="lines-wrap" class="lines-wrap" hidden aria-labelledby="h-lines">
+      <div class="lines-head">
+        <h2 id="h-lines">材料ごとの計算</h2>
+        <span id="lines-count" class="note"></span>
+      </div>
+      <div id="lines"></div>
+    </section>
+  </div>
+</main>
+
+<section class="wrap about" aria-labelledby="h-about">
+  <h2 id="h-about">計算のしかた・出典</h2>
+  <ul class="about-list">
+    <li><b>栄養値</b>は文部科学省「日本食品標準成分表（八訂）増補2023年」本表（2026年3月27日更新のExcel）の可食部100 g当たりの値です。括弧付きの推計値はそのまま数値として使い（*）、Tr は 0、「-」（未測定）は合計に含めずに印（※）を付けます。</li>
+    <li><b>廃棄率</b>は成分表の値を使います。さんまのように成分表の備考に「魚体全体から調理する場合、廃棄率 35 %」などの記載がある食品は、「匹」「尾」で入力すると自動でその値を使います（行ごとに変更できます）。</li>
+    <li><b>大さじ・小さじ・カップ</b>は 15 mL・5 mL・200 mL、1合は 180 mL として容量にし、成分表の備考にある「100 mL：○ g」で重さにします。備考に記載のない食品は、自治体の公開資料の計量表の値を出典付きで使います。</li>
+    <li><b>「1匹」「1個」などの目安重量は未収録</b>です。出典が確かで再配布できる公開データを入手できなかったためです。行ごとに「1個あたりの重さ」を入れると計算でき、入れた値はこの端末（ブラウザ）にだけ保存されます。</li>
+    <li>「少々」「適量」などは量が決まらないので計算に入れません。水も成分表（本表）に収載がないため計算に入れません。</li>
+    <li><b>PFCバランス</b>は、たんぱく質・脂質・炭水化物の量に Atwater 係数（4・9・4 kcal/g）を掛けたエネルギーの比です。成分表のエネルギー値は別の方法で計算されているため、両者の合計は一致しません。</li>
+    <li><b>目標量との比較</b>は厚生労働省「日本人の食事摂取基準（2025年版）」の、成人の1日あたりの目標量です（食塩相当量：男性 7.5 g未満・女性 6.5 g未満。エネルギー産生栄養素バランス：たんぱく質 13〜20 %（50〜64歳は14〜20 %、65歳以上は15〜20 %）、脂質 20〜30 %、炭水化物 50〜65 %）。1食分の値を1日の目標量と比べた参考値で、1食あたりの基準ではありません。</li>
+  </ul>
+  <p class="credit" id="credit">出典：「日本食品標準成分表（八訂）増補2023年」（文部科学省）（https://www.mext.go.jp/a_menu/syokuhinseibun/mext_00001.html）を加工して作成。本ツールは文部科学省が作成したものではありません。計量表の重量値は那覇市保健所・郡山市保健所の公開資料、計量単位の定義は同資料と古賀市「コガ COOKING NOTE」によります。</p>
+  <p class="credit">目標量：厚生労働省「日本人の食事摂取基準（2025年版）」策定検討会報告書（https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/kenkou/eiyou/syokuji_kijyun.html）。数値は同報告書の要点資料「日本人の食事摂取基準（2025年版）の策定ポイント」（2025年2月）の「ナトリウムの食事摂取基準」「エネルギー産生栄養素バランスの食事摂取基準」の表と、「1-5 エネルギー産生栄養素バランス」のエネルギー換算係数の記述によります。</p>
+  <p class="note">計算結果は目安です。食品の個体差・調理による変化（煮汁に溶け出す塩分など）は反映していません。医療・栄養指導の代わりにはなりません。</p>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap note">recipe-eiyou ― 静的サイト（外部サービス・通信なし）。入力内容はこの端末のブラウザにだけ保存されます。</div>
+</footer>
+
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+<script src="js/recipe-core.js"></script>
+<script src="js/recipes.js"></script>
+<script src="js/app.js"></script>
+<script src="i18n-kit.js" defer></script>
+</body>
+</html>
